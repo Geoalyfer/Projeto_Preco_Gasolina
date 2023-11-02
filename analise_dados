@@ -1,0 +1,140 @@
+Análise variação do preço da gasolina
+Objetivo da análise
+
+Gerar uma tabela com a variação percentural ano a ano do preço médio da gasolina comum no estado do Rio de Janeiro.
+
+Base de Dados no Kaggle
+
+https://www.kaggle.com/datasets/matheusfreitag/gas-prices-in-brazil
+
+Carregando bibliotecas
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+Carregando a base de dados
+df = pd.read_csv('precos.tsv', sep='\t')
+
+df.head()
+df.tail()
+df.info()
+
+df = pd.read_csv('precos.tsv', sep='\t', parse_dates=['DATA INICIAL', 'DATA FINAL'])
+
+0   DATA INICIAL                   120823 non-null  datetime64[ns]
+1   DATA FINAL                     120823 non-null  datetime64[ns]
+
+df.head()
+df.loc[:, :'PREÇO MÁXIMO REVENDA']
+df_tratado = df.loc[:, :'PREÇO MÁXIMO REVENDA'].copy()
+
+df_tratado.head()
+df_tratado.columns
+df_tratado.columns = ['DATA INICIAL', 'DATA FINAL', 'REGIÃO', 'ESTADO', 'PRODUTO',
+       'NÚMERO DE POSTOS PESQUISADOS', 'UNIDADE DE MEDIDA',
+       'PREÇO MÉDIO REVENDA', 'DESVIO PADRÃO REVENDA', 'PREÇO MÍNIMO REVENDA',
+       'PREÇO MÁXIMO REVENDA']
+df_tratado.columns = ['dt_inicial', 'dt_final', 'regiao', 'estado', 'produto',
+       'nr_postos_pesquisados', 'unidade_medida',
+       'preco_medio_revenda', 'std_revenda', 'preco_min_revenda',
+       'preco_max_revenda']
+df_tratado.head()
+
+# Análises exploratórias iniciais
+
+df_tratado.head()
+#Verificando a quantidade de estados
+len(df_tratado['estado'].unique())
+df_tratado['estado'].unique()
+
+df_tratado['produto'].unique()
+
+df_tratado['dt_inicial'].min()
+df_tratado['dt_final'].max()
+
+# Filtrando o dataset
+
+df_tratado.query("estado == 'RIO DE JANEIRO'")
+df_tratado.query("estado == 'RIO DE JANEIRO' and produto == 'GASOLINA COMUM'")
+df_rio_gasolina = df_tratado.query("estado == 'RIO DE JANEIRO' and produto == 'GASOLINA COMUM'").copy()
+df.shape
+df_rio_gasolina.shape
+df_rio_gasolina.head()
+
+# Configurando o índice do dataframe df_rio_gasolina
+df_rio_gasolina.set_index('dt_final', inplace=True)
+df_rio_gasolina.head()
+df_rio_gasolina.loc['2004']
+
+#Verificar buracos na série temporal
+df_rio_gasolina.index
+for i in df_rio_gasolina.index: 
+    print(i)
+for i in df_rio_gasolina.index: 
+    print(i.year)
+
+#Verificando anos e meses no dataset
+datas = []
+for i in df_rio_gasolina.index: 
+    datas.append((i.year, i.month))
+datas
+
+#Remover dados repetidos
+set (datas)
+df_rio_gasolina.loc['2005':'2020']
+df_rio_gasolina = df_rio_gasolina.loc['2005':'2020'].copy()
+df_rio_gasolina.shape
+
+# Estatísticas básicas
+df_rio_gasolina
+df_rio_gasolina['preco_medio_revenda']
+df_rio_gasolina['preco_medio_revenda'].hist()
+sns.set_style('darkgrid')
+sns.boxplot(data=df_rio_gasolina, x='preco_medio_revenda')
+df_rio_gasolina['preco_medio_revenda'].describe()
+
+# Gerando a tabela de variação percentual
+# Agrupar os dados
+df_rio_gasolina.head()
+df_rio_gasolina.groupby(df_rio_gasolina.index.year)
+df_rio_gasolina.groupby(df_rio_gasolina.index.year).last()
+
+#Agregando a media para o preço médio de revenda
+df_rio_gasolina.groupby(df_rio_gasolina.index.year).agg({
+    'preco_medio_revenda': np.mean 
+})
+
+# Calculando a diferença de variação de um ano para outro
+df_tabela = df_rio_gasolina.groupby(df_rio_gasolina.index.year).agg({
+    'preco_medio_revenda': np.mean 
+})
+df_tabela
+df_tabela.shift(1)
+#Criar uma nova coluna valor_ano_anterior com o deslocamento de 1 linha para baixo (shift)
+df_tabela['valor_ano_anterior'] = df_tabela.shift(1)
+df_tabela
+df_tabela.loc['2006':]
+df_tabela = df_tabela.loc['2006':]
+df_tabela
+df_tabela ['preco_medio_revenda'] / df_tabela['valor_ano_anterior']
+(df_tabela ['preco_medio_revenda'] / df_tabela['valor_ano_anterior']) - 1
+((df_tabela ['preco_medio_revenda'] / df_tabela['valor_ano_anterior']) - 1) * 100
+round(((df_tabela ['preco_medio_revenda'] / df_tabela['valor_ano_anterior']) - 1) * 100, 2)
+df_tabela = df_tabela.loc['2006':].copy()
+#Criar nova coluna chamada variacao_percentual
+df_tabela['variacao_percentual'] = round(((df_tabela ['preco_medio_revenda'] / df_tabela['valor_ano_anterior']) - 1) * 100, 2)
+df_tabela
+
+# Fechamento e exportaçao para arquivo excel
+df_tabela.to_excel('tabela_variacao_gasolina_rj.xlsx')
+
+#Exportar gráfico para arquivo png
+plt.figure(figsize=(15,5))
+df_rio_gasolina['preco_medio_revenda'].hist()
+plt.savefig('histograma.png')
+
+plt.figure(figsize=(15,5))
+sns.boxplot(data=df_rio_gasolina, x='preco_medio_revenda')
+plt.savefig('histograma.png')
+
